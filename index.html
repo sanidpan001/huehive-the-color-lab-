@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HueHive — Free Color Palette Generator, Image Palette Extractor & Contrast Checker</title>
+<meta name="description" content="HueHive is a free color palette generator: create color harmonies, extract palettes from any image, check WCAG contrast, simulate color blindness, and export CSS variables + Tailwind config. Unlimited free usage, no signup.">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .tape { position:absolute; top:-12px; left:50%; transform:translateX(-50%) rotate(-3deg); width:96px; height:26px;
+          background:rgba(255,255,255,.55); border-left:2px dashed rgba(0,0,0,.12); border-right:2px dashed rgba(0,0,0,.12);
+          box-shadow:0 1px 3px rgba(0,0,0,.12); border-radius:3px; }
+  .swatch-pop { transition: transform .12s ease; }
+  .swatch-pop:hover { transform: translateY(-4px) scale(1.03); }
+  .dotgrid { background-image: radial-gradient(rgba(0,0,0,.10) 1.2px, transparent 1.2px); background-size: 18px 18px; }
+  .tabbtn.on { background:#111827; color:#fff; }
+  .visbtn.on { outline:3px solid #111827; outline-offset:2px; }
+  input[type=color] { -webkit-appearance:none; border:none; padding:0; background:none; }
+  input[type=color]::-webkit-color-swatch-wrapper { padding:0; }
+  input[type=color]::-webkit-color-swatch { border:none; border-radius:9999px; }
+  .no-scrollbar::-webkit-scrollbar{display:none} .no-scrollbar{scrollbar-width:none}
+  @media print { .no-print { display:none !important; } }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"Is HueHive's color palette generator really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every feature on HueHive — palette generation, image palette extraction, the WCAG contrast checker, the color-blindness simulator, and all exports — is free with unlimited usage. There is no signup, no paywall, and no watermark on anything you create or download."}},
+    {"@type":"Question","name":"How does the image-to-palette extractor work?","acceptedAnswer":{"@type":"Answer","text":"When you upload a photo, HueHive draws it to an in-memory canvas, samples its pixels, groups similar colors together with a quantization pass, and returns the most dominant colors. Your image never leaves your browser — everything happens locally on your device, so it is private and instant."}},
+    {"@type":"Question","name":"What is a good WCAG contrast ratio?","acceptedAnswer":{"@type":"Answer","text":"WCAG 2.1 asks for at least 4.5:1 for normal text (AA), 3:1 for large text or UI components (AA), and 7:1 for the strict AAA level on normal text. HueHive's contrast checker shows the exact ratio plus pass/fail badges for each level, and previews your text on the background live."}},
+    {"@type":"Question","name":"Which color harmony should I choose?","acceptedAnswer":{"@type":"Answer","text":"Complementary (opposite hues) gives bold contrast for calls-to-action; analogous (neighbors on the wheel) feels calm and cohesive; triadic and tetradic give playful multi-color schemes for illustrations; monochromatic (one hue, varied lightness) is the safest choice for minimal interfaces."}},
+    {"@type":"Question","name":"How do I make my palette color-blind friendly?","acceptedAnswer":{"@type":"Answer","text":"Avoid relying on red-versus-green alone to carry meaning, and check pairs with strong lightness differences. HueHive's vision simulator shows your palette as seen with protanopia, deuteranopia, and tritanopia so you can verify that every color still reads distinctly before you ship."}},
+    {"@type":"Question","name":"How do I export a palette to Tailwind CSS?","acceptedAnswer":{"@type":"Answer","text":"Click any palette you like, then open the Export Studio and choose the Tailwind tab. HueHive generates a ready-to-paste tailwind.config.js colors object. You can also copy CSS custom properties, JSON tokens, or download the snippet as a file — all with one click."}}
+  ]
+}
+</script>
+</head>
+<body class="bg-white text-slate-900" id="top">
+
+<!-- ============ HEADER ============ -->
+<header class="sticky top-0 z-40 bg-white/90 backdrop-blur border-b-2 border-slate-900">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2">
+      <svg width="34" height="34" viewBox="0 0 40 40" aria-hidden="true">
+        <polygon points="20,2 35,11 35,29 20,38 5,29 5,11" fill="#FF4D6D"/>
+        <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" fill="#FFD23F"/>
+        <polygon points="20,14 25,17 25,23 20,26 15,23 15,17" fill="#4D96FF"/>
+      </svg>
+      <span class="text-2xl font-black tracking-tight">Hue<span class="text-pink-500">Hive</span></span>
+    </a>
+    <nav class="flex items-center gap-5 text-sm font-bold">
+      <a href="#top" class="hover:text-pink-600">Home</a>
+      <a href="https://fixoraa.tech" class="bg-slate-900 text-white px-4 py-2 rounded-full hover:bg-pink-600 transition">More Tools</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============ HERO ============ -->
+<div class="dotgrid border-b-2 border-slate-900">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6 py-10 text-center">
+    <span class="inline-block bg-lime-300 border-2 border-slate-900 rounded-full px-4 py-1 text-xs font-black uppercase tracking-widest shadow-[3px_3px_0_#111827]">✨ Unlimited Free Usage — no signup, no watermark</span>
+    <h1 class="mt-4 text-4xl sm:text-6xl font-black leading-tight">The <span class="bg-gradient-to-r from-pink-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent">Color Lab</span><br>for Playful Designers</h1>
+    <p class="mt-3 text-slate-600 max-w-2xl mx-auto font-medium">Generate harmonies, pull palettes straight out of photos, check WCAG contrast, preview color-blind vision, and export developer-ready code — all in one buzzing hive.</p>
+  </div>
+</div>
+
+<!-- ============ TOP AD ============ -->
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pt-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <div class="origin-top scale-[0.44] sm:scale-100 shrink-0">
+        <script>
+          atOptions = { 'key' : '4e68ac77881c17fe128a46565d9a4e8c', 'format' : 'iframe', 'height' : 90, 'width' : 728, 'params' : {} };
+        </script>
+        <script src="https://www.highrevenueformat.com/4e68ac77881c17fe128a46565d9a4e8c/invoke.js"></script>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ TOOL ============ -->
+<main class="mx-auto max-w-6xl px-4 sm:px-6 py-8 space-y-10">
+
+  <!-- STATION 1: GENERATOR -->
+  <section class="relative bg-amber-50 border-2 border-slate-900 rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0_#111827]" aria-label="Palette generator">
+    <div class="tape"></div>
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <h2 class="text-2xl sm:text-3xl font-black">🧪 Harmony Generator</h2>
+      <div class="flex flex-wrap items-center gap-2 text-sm">
+        <label class="font-bold">Base <input id="baseColor" type="color" value="#FF4D6D" class="w-10 h-10 rounded-full border-2 border-slate-900 cursor-pointer align-middle"></label>
+        <select id="harmonyRule" class="border-2 border-slate-900 rounded-full px-3 py-2 font-bold bg-white cursor-pointer">
+          <option value="random">🎲 Surprise me</option>
+          <option value="complementary">⚔️ Complementary</option>
+          <option value="analogous">🌈 Analogous</option>
+          <option value="triadic">🔺 Triadic</option>
+          <option value="tetradic">⬛ Tetradic</option>
+          <option value="split">🍴 Split-complementary</option>
+          <option value="monochromatic">🌫️ Monochromatic</option>
+          <option value="pastel">🍬 Pastel</option>
+          <option value="vivid">⚡ Vivid pop</option>
+        </select>
+        <select id="swatchCount" class="border-2 border-slate-900 rounded-full px-3 py-2 font-bold bg-white cursor-pointer" title="Number of colors">
+          <option value="3">3 colors</option>
+          <option value="4">4 colors</option>
+          <option value="5" selected>5 colors</option>
+          <option value="6">6 colors</option>
+          <option value="7">7 colors</option>
+          <option value="8">8 colors</option>
+        </select>
+        <button id="genBtn" class="bg-pink-500 text-white font-black px-5 py-2 rounded-full border-2 border-slate-900 shadow-[3px_3px_0_#111827] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#111827] transition">Generate ⏎</button>
+      </div>
+    </div>
+    <p class="text-xs text-slate-500 font-bold mb-3">TIP: click a swatch to copy its HEX · 🔒 locks survive regeneration · press <kbd class="border border-slate-400 rounded px-1 bg-white">Space</kbd> to shuffle</p>
+    <div id="paletteRow" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3"></div>
+    <!-- swatch detail -->
+    <div id="swatchDetail" class="hidden mt-5 bg-white border-2 border-dashed border-slate-400 rounded-2xl p-4"></div>
+  </section>
+
+  <!-- STATION 2: IMAGE EXTRACTOR -->
+  <section class="relative bg-cyan-50 border-2 border-slate-900 rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0_#111827]" aria-label="Extract palette from image">
+    <div class="tape"></div>
+    <h2 class="text-2xl sm:text-3xl font-black mb-2">🖼️ Photo → Palette Extractor</h2>
+    <p class="text-slate-600 font-medium mb-5 text-sm">Drop in any photo and the hive samples its pixels to find the dominant colors. 100% in-browser — your image never leaves this page.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div>
+        <label id="dropzone" class="flex flex-col items-center justify-center border-3 border-dashed border-slate-400 rounded-2xl bg-white p-8 cursor-pointer hover:border-cyan-500 hover:bg-cyan-100/40 transition min-h-[220px] text-center" style="border-width:3px">
+          <span class="text-5xl mb-2">📸</span>
+          <span class="font-black">Drag & drop an image here</span>
+          <span class="text-sm text-slate-500 font-medium">or click to browse · PNG / JPG / GIF / WebP</span>
+          <input id="fileInput" type="file" accept="image/*" class="hidden">
+        </label>
+        <p id="fileErr" class="hidden mt-2 text-sm font-bold text-red-600"></p>
+        <div class="mt-4 flex items-center gap-3">
+          <label class="text-sm font-bold">Colors to extract</label>
+          <input id="extractCount" type="range" min="3" max="10" value="6" class="flex-1 accent-pink-500">
+          <span id="extractCountVal" class="font-black bg-white border-2 border-slate-900 rounded-full w-9 h-9 grid place-items-center text-sm">6</span>
+        </div>
+        <p class="mt-3 text-xs text-slate-500 font-medium">👆 Click anywhere on the preview to grab that exact pixel color into your palette.</p>
+      </div>
+      <div>
+        <div class="bg-white border-2 border-slate-900 rounded-2xl overflow-hidden">
+          <canvas id="imgCanvas" class="w-full max-h-[300px] object-contain cursor-crosshair bg-slate-100 block"></canvas>
+        </div>
+        <div id="extractedRow" class="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 3: CONTRAST -->
+  <section class="relative bg-violet-50 border-2 border-slate-900 rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0_#111827]" aria-label="WCAG contrast checker">
+    <div class="tape"></div>
+    <h2 class="text-2xl sm:text-3xl font-black mb-2">🔬 WCAG Contrast Checker</h2>
+    <p class="text-slate-600 font-medium mb-5 text-sm">Pick any text + background pair and get the exact contrast ratio with AA / AAA verdicts.</p>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="bg-white border-2 border-slate-900 rounded-2xl p-5 space-y-4">
+        <div class="flex items-center gap-4">
+          <div class="flex-1">
+            <label class="text-xs font-black uppercase tracking-wider">Text color</label>
+            <div class="flex items-center gap-2 mt-1">
+              <input id="fgPick" type="color" value="#111827" class="w-12 h-12 rounded-xl border-2 border-slate-900 cursor-pointer">
+              <input id="fgHex" type="text" value="#111827" maxlength="7" spellcheck="false" class="w-full border-2 border-slate-300 rounded-xl px-3 py-2 font-mono font-bold uppercase">
+            </div>
+          </div>
+          <button id="swapBtn" title="Swap colors" class="mt-5 bg-slate-900 text-white w-11 h-11 rounded-full font-black text-xl hover:bg-pink-600 transition shrink-0">⇄</button>
+          <div class="flex-1">
+            <label class="text-xs font-black uppercase tracking-wider">Background</label>
+            <div class="flex items-center gap-2 mt-1">
+              <input id="bgPick" type="color" value="#FFD23F" class="w-12 h-12 rounded-xl border-2 border-slate-900 cursor-pointer">
+              <input id="bgHex" type="text" value="#FFD23F" maxlength="7" spellcheck="false" class="w-full border-2 border-slate-300 rounded-xl px-3 py-2 font-mono font-bold uppercase">
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <div class="text-5xl font-black" id="ratioBig">–</div>
+          <div class="flex flex-wrap gap-2" id="gradeBadges"></div>
+        </div>
+        <p id="contrastMsg" class="text-sm font-medium text-slate-600"></p>
+        <button id="useAsPaletteBtn" class="text-sm font-black text-violet-700 underline decoration-wavy underline-offset-4">Use this pair as a 2-color palette →</button>
+      </div>
+      <div id="contrastPreview" class="border-2 border-slate-900 rounded-2xl p-6 transition-colors">
+        <p class="text-xs font-black uppercase tracking-widest opacity-70 mb-2">Live preview</p>
+        <p class="text-3xl font-black" id="prevHeading">Design is intelligence made visible</p>
+        <p class="mt-2 font-medium" id="prevBody">The quick brown fox jumps over the lazy dog. 1234567890 — small body text at 16px.</p>
+        <button class="mt-4 font-black px-5 py-2 rounded-full border-2" id="prevBtn">Call to action</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 4: VISION SIM -->
+  <section class="relative bg-lime-50 border-2 border-slate-900 rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0_#111827]" aria-label="Color blindness simulator">
+    <div class="tape"></div>
+    <h2 class="text-2xl sm:text-3xl font-black mb-2">👁️ Vision Simulator</h2>
+    <p class="text-slate-600 font-medium mb-5 text-sm">See your current palette through the eyes of people with color-vision deficiency. Uses standard LMS simulation matrices.</p>
+    <div class="flex flex-wrap gap-2 mb-5" id="visBtns">
+      <button data-vis="normal" class="visbtn on bg-white border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black">Normal vision</button>
+      <button data-vis="protanopia" class="visbtn bg-white border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black">🔴 Protanopia <span class="font-medium text-slate-500">(red-blind)</span></button>
+      <button data-vis="deuteranopia" class="visbtn bg-white border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black">🟢 Deuteranopia <span class="font-medium text-slate-500">(green-blind)</span></button>
+      <button data-vis="tritanopia" class="visbtn bg-white border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black">🔵 Tritanopia <span class="font-medium text-slate-500">(blue-blind)</span></button>
+      <button data-vis="achromatopsia" class="visbtn bg-white border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black">⚪ Achromatopsia <span class="font-medium text-slate-500">(no color)</span></button>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div class="bg-white border-2 border-slate-900 rounded-2xl p-4">
+        <p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-3">Original</p>
+        <div id="visOriginal" class="flex rounded-xl overflow-hidden border-2 border-slate-900 h-24"></div>
+      </div>
+      <div class="bg-white border-2 border-slate-900 rounded-2xl p-4">
+        <p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-3" id="visSimLabel">Simulated</p>
+        <div id="visSim" class="flex rounded-xl overflow-hidden border-2 border-slate-900 h-24"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATION 5: EXPORT + SAVED -->
+  <section class="relative bg-rose-50 border-2 border-slate-900 rounded-3xl p-5 sm:p-8 shadow-[6px_6px_0_#111827]" aria-label="Export and saved palettes">
+    <div class="tape"></div>
+    <h2 class="text-2xl sm:text-3xl font-black mb-2">📦 Export Studio</h2>
+    <p class="text-slate-600 font-medium mb-5 text-sm">Turn the current palette into developer-ready code with one click.</p>
+    <div class="flex gap-2 mb-4 overflow-x-auto no-scrollbar" id="exportTabs">
+      <button data-exp="css" class="tabbtn on shrink-0 border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black bg-white">CSS variables</button>
+      <button data-exp="tailwind" class="tabbtn shrink-0 border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black bg-white">Tailwind config</button>
+      <button data-exp="json" class="tabbtn shrink-0 border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black bg-white">JSON tokens</button>
+      <button data-exp="svg" class="tabbtn shrink-0 border-2 border-slate-900 rounded-full px-4 py-2 text-sm font-black bg-white">SVG strip</button>
+    </div>
+    <div class="bg-slate-900 rounded-2xl p-1">
+      <pre id="exportCode" class="text-lime-300 text-xs sm:text-sm font-mono p-4 overflow-x-auto max-h-64 overflow-y-auto whitespace-pre"></pre>
+    </div>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button id="copyExportBtn" class="bg-slate-900 text-white font-black px-5 py-2 rounded-full text-sm hover:bg-pink-600 transition">📋 Copy code</button>
+      <button id="dlExportBtn" class="bg-white border-2 border-slate-900 font-black px-5 py-2 rounded-full text-sm hover:bg-amber-100 transition">⬇ Download file</button>
+      <span id="exportMsg" class="text-sm font-bold text-green-700 self-center"></span>
+    </div>
+
+    <div class="mt-8 pt-6 border-t-2 border-dashed border-slate-300">
+      <h3 class="text-xl font-black mb-3">🐝 My Saved Hives</h3>
+      <div class="flex flex-wrap gap-2 mb-4">
+        <input id="saveName" type="text" placeholder="Name this palette…" maxlength="40" class="flex-1 min-w-[180px] border-2 border-slate-900 rounded-full px-4 py-2 font-bold">
+        <button id="saveBtn" class="bg-amber-400 font-black px-5 py-2 rounded-full border-2 border-slate-900 shadow-[3px_3px_0_#111827] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#111827] transition">Save palette</button>
+      </div>
+      <div id="savedList" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      <p id="savedEmpty" class="text-sm text-slate-500 font-medium">Nothing saved yet — your palettes are stored privately in this browser (localStorage).</p>
+    </div>
+  </section>
+</main>
+
+<!-- ============ BOTTOM AD ============ -->
+<div class="no-print mx-auto max-w-6xl px-4 sm:px-6 pb-4" role="complementary" aria-label="Advertisement">
+  <div class="mx-auto text-center" style="max-width:728px">
+    <span class="block text-[10px] tracking-[0.18em] uppercase text-slate-400 mb-1.5">Advertisement</span>
+    <div class="flex justify-center overflow-hidden">
+      <script async src="https://js.wpadmngr.com/static/adManager.js" data-admpid="464498"></script>
+    </div>
+  </div>
+</div>
+<script>
+/* ================= CORE LOGIC (pure, DOM-free — also exercised by Node tests) ================= */
+// __CORE_LOGIC_START__
+function clampByte(n){ n = Math.round(n); return n < 0 ? 0 : n > 255 ? 255 : n; }
+
+function hexToRgb(hex){
+  if (typeof hex !== 'string') return null;
+  var m = hex.trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(m)) m = m[0]+m[0]+m[1]+m[1]+m[2]+m[2];
+  if (!/^[0-9a-fA-F]{6}$/.test(m)) return null;
+  return { r: parseInt(m.slice(0,2),16), g: parseInt(m.slice(2,4),16), b: parseInt(m.slice(4,6),16) };
+}
+function rgbToHex(r,g,b){
+  r = clampByte(r); g = clampByte(g); b = clampByte(b);
+  return '#' + [r,g,b].map(function(v){ var s = v.toString(16); return s.length < 2 ? '0'+s : s; }).join('').toUpperCase();
+}
+function rgbToHsl(r,g,b){
+  r/=255; g/=255; b/=255;
+  var max=Math.max(r,g,b), min=Math.min(r,g,b), h=0, s=0, l=(max+min)/2;
+  if (max !== min){
+    var d = max-min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    if (max===r) h = (g-b)/d + (g<b?6:0);
+    else if (max===g) h = (b-r)/d + 2;
+    else h = (r-g)/d + 4;
+    h *= 60;
+  }
+  return { h: Math.round(h)%360, s: Math.round(s*100), l: Math.round(l*100) };
+}
+function hslToRgb(h,s,l){
+  h = ((h%360)+360)%360; s = Math.max(0,Math.min(100,s))/100; l = Math.max(0,Math.min(100,l))/100;
+  var r,g,b;
+  if (s === 0){ r=g=b=l; }
+  else {
+    var q = l < 0.5 ? l*(1+s) : l+s-l*s;
+    var p = 2*l-q;
+    var hk = h/360;
+    var t = [hk+1/3, hk, hk-1/3].map(function(tc){ if(tc<0)tc+=1; if(tc>1)tc-=1; return tc; });
+    var f = t.map(function(tc){
+      if (tc < 1/6) return p + (q-p)*6*tc;
+      if (tc < 1/2) return q;
+      if (tc < 2/3) return p + (q-p)*(2/3-tc)*6;
+      return p;
+    });
+    r=f[0]; g=f[1]; b=f[2];
+  }
+  return { r: clampByte(r*255), g: clampByte(g*255), b: clampByte(b*255) };
+}
+/* Harmony rules: returns array of {h,s,l} for a base hsl */
+var HARMONY_OFFSETS = {
+  complementary: [0,180],
+  analogous: [-30,0,30],
+  triadic: [0,120,240],
+  tetradic: [0,90,180,270],
+  'split': [0,150,210],
+  monochromatic: 'mono',
+  pastel: [0,40,80,200,260],
+  vivid: 'vivid',
+  random: 'random'
+};
+function generateHarmony(baseHex, rule, count){
+  var base = hexToRgb(baseHex);
+  if (!base) return null;
+  count = Math.max(2, Math.min(10, count || 5));
+  var hsl = rgbToHsl(base.r, base.g, base.b);
+  var out = [];
+  if (rule === 'monochromatic'){
+    for (var i=0;i<count;i++){
+      var l = 15 + Math.round(i*(70/Math.max(1,count-1)));
+      out.push(rgbToHex.apply(null, (function(c){return [c.r,c.g,c.b];})(hslToRgb(hsl.h, Math.min(95,hsl.s+10), l))));
+    }
+  } else if (rule === 'pastel'){
+    for (var j=0;j<count;j++){
+      var h2 = (hsl.h + j*(360/count))%360;
+      var c = hslToRgb(h2, 68, 80);
+      out.push(rgbToHex(c.r,c.g,c.b));
+    }
+  } else if (rule === 'vivid'){
+    for (var k=0;k<count;k++){
+      var h3 = (hsl.h + k*(360/count) + (k%2?18:-12))%360;
+      var cc = hslToRgb((h3+360)%360, 95, 55);
+      out.push(rgbToHex(cc.r,cc.g,cc.b));
+    }
+  } else if (rule === 'random'){
+    var seedH = hsl.h;
+    for (var m=0;m<count;m++){
+      var hh = (seedH + m*137.508 + (m%2)*40)%360; /* golden-angle walk */
+      var cs = 55 + (m*23)%40, cl = 45 + (m*31)%25;
+      var cr = hslToRgb(hh, cs, cl);
+      out.push(rgbToHex(cr.r,cr.g,cr.b));
+    }
+  } else {
+    var offs = HARMONY_OFFSETS[rule] || HARMONY_OFFSETS.complementary;
+    for (var n=0;n<count;n++){
+      var off = offs[n % offs.length];
+      var round = Math.floor(n / offs.length);
+      var hh2 = (((hsl.h + off)%360)+360)%360;
+      var ss = Math.max(25, Math.min(95, hsl.s + (round%2 ? -18 : 12)));
+      var ll = Math.max(18, Math.min(82, hsl.l + (round ? (round%2? -16 : 14) : 0)));
+      var c2 = hslToRgb(hh2, ss, ll);
+      out.push(rgbToHex(c2.r,c2.g,c2.b));
+    }
+  }
+  return out;
+}
+/* WCAG 2.1 relative luminance + contrast */
+function relativeLuminance(r,g,b){
+  function lin(v){ v/=255; return v <= 0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4); }
+  return 0.2126*lin(r) + 0.7152*lin(g) + 0.0722*lin(b);
+}
+function contrastRatio(hexA, hexB){
+  var a = hexToRgb(hexA), b = hexToRgb(hexB);
+  if (!a || !b) return null;
+  var l1 = relativeLuminance(a.r,a.g,a.b), l2 = relativeLuminance(b.r,b.g,b.b);
+  var hi = Math.max(l1,l2), lo = Math.min(l1,l2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+function wcagGrade(ratio){
+  if (ratio == null || isNaN(ratio)) return null;
+  return {
+    aaNormal: ratio >= 4.5, aaLarge: ratio >= 3,
+    aaaNormal: ratio >= 7, aaaLarge: ratio >= 4.5
+  };
+}
+/* Color-vision-deficiency simulation matrices (sRGB, Machado-style) */
+var CVD_MATRICES = {
+  protanopia:   [[0.567,0.433,0],[0.558,0.442,0],[0,0.242,0.758]],
+  deuteranopia: [[0.625,0.375,0],[0.7,0.3,0],[0,0.3,0.7]],
+  tritanopia:   [[0.95,0.05,0],[0,0.433,0.567],[0,0.475,0.525]],
+  achromatopsia:[[0.299,0.587,0.114],[0.299,0.587,0.114],[0.299,0.587,0.114]]
+};
+function simulateColorBlind(hex, type){
+  var c = hexToRgb(hex);
+  if (!c) return null;
+  var m = CVD_MATRICES[type];
+  if (!m) return hex.toUpperCase();
+  var r = m[0][0]*c.r + m[0][1]*c.g + m[0][2]*c.b;
+  var g = m[1][0]*c.r + m[1][1]*c.g + m[1][2]*c.b;
+  var b = m[2][0]*c.r + m[2][1]*c.g + m[2][2]*c.b;
+  return rgbToHex(r,g,b);
+}
+/* Pixel sampling: pixels = array of [r,g,b]; returns top-N dominant hex colors */
+function extractPaletteFromPixels(pixels, count){
+  count = Math.max(1, Math.min(12, count || 6));
+  if (!pixels || !pixels.length) return [];
+  var buckets = Object.create(null);
+  var STEP = 32;
+  for (var i=0;i<pixels.length;i++){
+    var p = pixels[i];
+    if (!p || p.length < 3) continue;
+    var q = Math.round(p[0]/STEP)*STEP + ',' + Math.round(p[1]/STEP)*STEP + ',' + Math.round(p[2]/STEP)*STEP;
+    buckets[q] = (buckets[q]||0) + 1;
+  }
+  var sorted = Object.keys(buckets).map(function(k){
+    return { rgb: k.split(',').map(Number), n: buckets[k] };
+  }).sort(function(a,b){ return b.n - a.n; });
+  var out = [];
+  for (var j=0;j<sorted.length && out.length<count;j++){
+    var rgb = sorted[j].rgb;
+    var hex = rgbToHex(Math.min(255,rgb[0]), Math.min(255,rgb[1]), Math.min(255,rgb[2]));
+    var dup = out.some(function(e){ return contrastRatio(e, hex) !== null && contrastRatio(e, hex) < 1.12; });
+    if (!dup) out.push(hex);
+  }
+  return out;
+}
+/* 9-step tints/shades strip around a color */
+function shadeScale(hex){
+  var c = hexToRgb(hex);
+  if (!c) return null;
+  var hsl = rgbToHsl(c.r,c.g,c.b);
+  var steps = [92,80,68,58,50,42,34,26,18];
+  return steps.map(function(l){
+    var t = hslToRgb(hsl.h, Math.max(30,hsl.s), l);
+    return rgbToHex(t.r,t.g,t.b);
+  });
+}
+function bestTextOn(hex){
+  var w = contrastRatio(hex, '#FFFFFF'), b = contrastRatio(hex, '#000000');
+  return (w||0) >= (b||0) ? '#FFFFFF' : '#000000';
+}
+function exportCSS(palette, name){
+  name = (name||'hive').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'hive';
+  var lines = [':root {'];
+  palette.forEach(function(hex,i){ lines.push('  --' + name + '-' + (i+1) + ': ' + hex + ';'); });
+  lines.push('}');
+  return lines.join('\n');
+}
+function exportTailwind(palette, name){
+  name = (name||'hive').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'hive';
+  var lines = ['module.exports = {','  theme: {','    extend: {','      colors: {',"        '" + name + "': {"];
+  palette.forEach(function(hex,i){ lines.push("          '" + ((i+1)*100) + "': '" + hex + "',"); });
+  lines.push('        },','      },','    },','  },','};');
+  return lines.join('\n');
+}
+function exportJSON(palette, name){
+  return JSON.stringify({ name: name || 'hive-palette', colors: palette.map(function(hex,i){
+    var c = hexToRgb(hex), hsl = rgbToHsl(c.r,c.g,c.b);
+    return { step: i+1, hex: hex, rgb: 'rgb(' + c.r + ', ' + c.g + ', ' + c.b + ')', hsl: 'hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)' };
+  }) }, null, 2);
+}
+function exportSVG(palette, name){
+  var w = 120, h = 120;
+  var rects = palette.map(function(hex,i){
+    return '  <rect x="' + (i*w) + '" y="0" width="' + w + '" height="' + h + '" fill="' + hex + '"/>';
+  }).join('\n');
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + (w*palette.length) + '" height="' + h + '" viewBox="0 0 ' + (w*palette.length) + ' ' + h + '">\n' + rects + '\n</svg>';
+}
+// __CORE_LOGIC_END__
+
+/* ================= APP STATE + UI ================= */
+var state = {
+  palette: ['#FF4D6D','#FF9F1C','#FFD23F','#2EC4B6','#4D96FF'],
+  locks: [false,false,false,false,false],
+  vis: 'normal',
+  exportTab: 'css'
+};
+var $ = function(id){ return document.getElementById(id); };
+
+function copyText(t, msgEl){
+  function done(){ if (msgEl){ msgEl.textContent = 'Copied ✓'; setTimeout(function(){ msgEl.textContent=''; }, 1600); } }
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(done).catch(function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta);
+    ta.select(); try { document.execCommand('copy'); } catch(e){}
+    document.body.removeChild(ta); done();
+  }
+}
+
+/* ---- palette rendering ---- */
+function renderPalette(){
+  var row = $('paletteRow'); row.innerHTML = '';
+  state.palette.forEach(function(hex, i){
+    var c = hexToRgb(hex), hsl = rgbToHsl(c.r,c.g,c.b);
+    var fg = bestTextOn(hex);
+    var card = document.createElement('div');
+    card.className = 'swatch-pop relative rounded-2xl border-2 border-slate-900 overflow-hidden cursor-pointer';
+    card.style.background = hex;
+    card.title = 'Click to copy HEX';
+    card.innerHTML =
+      '<div class="h-24 sm:h-28"></div>' +
+      '<div class="p-2 bg-white/95 backdrop-blur border-t-2 border-slate-900">' +
+        '<div class="font-black font-mono text-xs">' + hex + '</div>' +
+        '<div class="text-[10px] text-slate-500 font-bold">HSL ' + hsl.h + '° ' + hsl.s + '% ' + hsl.l + '%</div>' +
+        '<div class="flex gap-1 mt-1">' +
+          '<button data-act="lock" class="text-xs font-black border border-slate-300 rounded-full px-2 py-0.5 ' + (state.locks[i] ? 'bg-amber-300 border-slate-900' : 'bg-white') + '">' + (state.locks[i] ? '🔒' : '🔓') + '</button>' +
+          '<button data-act="detail" class="text-xs font-black border border-slate-300 rounded-full px-2 py-0.5 bg-white">shades</button>' +
+        '</div>' +
+      '</div>';
+    card.addEventListener('click', function(ev){
+      var act = ev.target.getAttribute('data-act');
+      if (act === 'lock'){ state.locks[i] = !state.locks[i]; renderPalette(); ev.stopPropagation(); return; }
+      if (act === 'detail'){ showDetail(i); ev.stopPropagation(); return; }
+      copyText(hex); flashCopied(card);
+    });
+    row.appendChild(card);
+  });
+  renderVision();
+  renderExport();
+}
+function flashCopied(card){
+  var b = document.createElement('div');
+  b.textContent = 'Copied ✓';
+  b.className = 'absolute inset-0 grid place-items-center font-black text-white text-lg bg-black/45 pointer-events-none';
+  card.appendChild(b);
+  setTimeout(function(){ b.remove(); }, 900);
+}
+function generate(){
+  var rule = $('harmonyRule').value, count = parseInt($('swatchCount').value, 10);
+  var base = $('baseColor').value;
+  var fresh = generateHarmony(base, rule, count) || [];
+  var next = [], locks = [];
+  for (var i=0;i<count;i++){
+    if (i < state.palette.length && state.locks[i]){ next.push(state.palette[i]); locks.push(true); }
+    else { next.push(fresh[i] || fresh[i % fresh.length]); locks.push(false); }
+  }
+  state.palette = next; state.locks = locks;
+  $('swatchDetail').classList.add('hidden');
+  renderPalette();
+}
+function showDetail(i){
+  var hex = state.palette[i], c = hexToRgb(hex), hsl = rgbToHsl(c.r,c.g,c.b);
+  var scale = shadeScale(hex);
+  var box = $('swatchDetail');
+  box.classList.remove('hidden');
+  box.innerHTML =
+    '<div class="flex flex-wrap items-center gap-3 mb-3">' +
+      '<div class="w-14 h-14 rounded-xl border-2 border-slate-900" style="background:' + hex + '"></div>' +
+      '<div><div class="font-black text-xl font-mono">' + hex + '</div>' +
+      '<div class="text-sm font-bold text-slate-600">rgb(' + c.r + ', ' + c.g + ', ' + c.b + ') · hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)</div></div>' +
+      '<div class="flex gap-2 ml-auto">' +
+        '<button id="dCopyHex" class="text-xs font-black bg-slate-900 text-white rounded-full px-3 py-1.5">Copy HEX</button>' +
+        '<button id="dCopyRgb" class="text-xs font-black bg-white border-2 border-slate-900 rounded-full px-3 py-1.5">Copy RGB</button>' +
+        '<button id="dCopyHsl" class="text-xs font-black bg-white border-2 border-slate-900 rounded-full px-3 py-1.5">Copy HSL</button>' +
+        '<button id="dUseBase" class="text-xs font-black bg-pink-500 text-white border-2 border-slate-900 rounded-full px-3 py-1.5">Use as base ⟶</button>' +
+      '</div>' +
+    '</div>' +
+    '<p class="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Tints → shades</p>' +
+    '<div class="flex rounded-xl overflow-hidden border-2 border-slate-900">' +
+      scale.map(function(s){ return '<button data-sh="' + s + '" title="' + s + '" class="flex-1 h-12 hover:scale-y-110 transition" style="background:' + s + '"></button>'; }).join('') +
+    '</div>';
+  $('dCopyHex').onclick = function(){ copyText(hex); };
+  $('dCopyRgb').onclick = function(){ copyText('rgb(' + c.r + ', ' + c.g + ', ' + c.b + ')'); };
+  $('dCopyHsl').onclick = function(){ copyText('hsl(' + hsl.h + ', ' + hsl.s + '%, ' + hsl.l + '%)'); };
+  $('dUseBase').onclick = function(){ $('baseColor').value = hex; generate(); };
+  box.querySelectorAll('[data-sh]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var sh = btn.getAttribute('data-sh');
+      state.palette[i] = sh; renderPalette(); showDetail(i);
+    });
+  });
+  box.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* ---- image extractor ---- */
+var imgPixels = [];
+function handleFile(file){
+  var err = $('fileErr');
+  err.classList.add('hidden');
+  if (!file){ return; }
+  if (!file.type || file.type.indexOf('image/') !== 0){
+    err.textContent = '⚠️ That file is not an image. Please choose a PNG, JPG, GIF or WebP file.';
+    err.classList.remove('hidden'); return;
+  }
+  var url = URL.createObjectURL(file);
+  var img = new Image();
+  img.onload = function(){
+    var canvas = $('imgCanvas');
+    var maxW = 320, scale = Math.min(1, maxW / img.width);
+    canvas.width = Math.max(1, Math.round(img.width * scale));
+    canvas.height = Math.max(1, Math.round(img.height * scale));
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    var data;
+    try { data = ctx.getImageData(0, 0, canvas.width, canvas.height).data; }
+    catch(e){
+      err.textContent = '⚠️ Could not read this image (browser blocked pixel access). Try another file.';
+      err.classList.remove('hidden'); return;
+    }
+    imgPixels = [];
+    var stride = 4 * Math.max(1, Math.floor((canvas.width*canvas.height) / 6000));
+    for (var i=0;i<data.length;i+=stride){
+      var a = data[i+3];
+      if (a < 128) continue; /* skip transparent */
+      imgPixels.push([data[i], data[i+1], data[i+2]]);
+    }
+    URL.revokeObjectURL(url);
+    runExtraction();
+  };
+  img.onerror = function(){
+    err.textContent = '⚠️ Could not load that image. Please try a different file.';
+    err.classList.remove('hidden');
+  };
+  img.src = url;
+}
+function runExtraction(){
+  var count = parseInt($('extractCount').value, 10);
+  var pal = extractPaletteFromPixels(imgPixels, count);
+  var row = $('extractedRow'); row.innerHTML = '';
+  if (!pal.length){
+    row.innerHTML = '<p class="col-span-full text-sm font-bold text-slate-500">No colors found — try a different image.</p>';
+    return;
+  }
+  pal.forEach(function(hex){
+    var b = document.createElement('button');
+    b.className = 'swatch-pop rounded-xl border-2 border-slate-900 overflow-hidden text-left';
+    b.title = 'Add to palette';
+    b.innerHTML = '<div class="h-12" style="background:' + hex + '"></div><div class="bg-white px-1.5 py-1 font-mono text-[10px] font-black">' + hex + '</div>';
+    b.addEventListener('click', function(){
+      state.palette.push(hex); state.locks.push(false);
+      if (state.palette.length > 8){ state.palette.shift(); state.locks.shift(); }
+      renderPalette();
+      document.querySelector('main section').scrollIntoView({behavior:'smooth'});
+    });
+    row.appendChild(b);
+  });
+}
+
+/* ---- contrast checker ---- */
+function syncContrast(from){
+  var fg = $('fgHex').value.trim(), bg = $('bgHex').value.trim();
+  if (from === 'pickfg') fg = $('fgPick').value;
+  if (from === 'pickbg') bg = $('bgPick').value;
+  if (hexToRgb(fg)) $('fgPick').value = fg.length === 4 ? ('#' + fg[1]+fg[1]+fg[2]+fg[2]+fg[3]+fg[3]) : fg;
+  if (hexToRgb(bg)) $('bgPick').value = bg.length === 4 ? ('#' + bg[1]+bg[1]+bg[2]+bg[2]+bg[3]+bg[3]) : bg;
+  var a = hexToRgb(fg), b = hexToRgb(bg);
+  var msg = $('contrastMsg');
+  if (!a || !b){
+    $('ratioBig').textContent = '–';
+    $('gradeBadges').innerHTML = '';
+    msg.textContent = 'Enter two valid HEX colors (e.g. #111827 on #FFD23F).';
+    return;
+  }
+  var ratio = contrastRatio(fg, bg);
+  var g = wcagGrade(ratio);
+  $('ratioBig').textContent = ratio.toFixed(2) + ':1';
+  function badge(ok, label){
+    return '<span class="text-xs font-black px-2.5 py-1 rounded-full border-2 ' + (ok ? 'bg-green-200 border-green-700 text-green-900' : 'bg-red-200 border-red-700 text-red-900') + '">' + (ok ? '✓' : '✗') + ' ' + label + '</span>';
+  }
+  $('gradeBadges').innerHTML = badge(g.aaNormal,'AA text') + badge(g.aaLarge,'AA large') + badge(g.aaaNormal,'AAA text') + badge(g.aaaLarge,'AAA large');
+  msg.textContent = ratio >= 7 ? 'Excellent — passes every WCAG level, including AAA for body text.'
+    : ratio >= 4.5 ? 'Good — passes AA for normal text. AAA needs 7:1.'
+    : ratio >= 3 ? 'Okay for large text and UI components only (3:1). Body text needs 4.5:1.'
+    : 'Poor — fails WCAG for text. Darken the text or lighten the background.';
+  var pv = $('contrastPreview');
+  pv.style.background = bg; pv.style.color = fg;
+  $('prevHeading').style.color = fg; $('prevBody').style.color = fg;
+  var btn = $('prevBtn');
+  btn.style.color = bestTextOn(fg); btn.style.background = fg; btn.style.borderColor = fg;
+}
+
+/* ---- vision simulator ---- */
+var VIS_NAMES = { normal:'Normal vision', protanopia:'Protanopia (red-blind)', deuteranopia:'Deuteranopia (green-blind)', tritanopia:'Tritanopia (blue-blind)', achromatopsia:'Achromatopsia (no color)' };
+function renderVision(){
+  var o = $('visOriginal'), s = $('visSim');
+  o.innerHTML = ''; s.innerHTML = '';
+  state.palette.forEach(function(hex){
+    var d1 = document.createElement('div'); d1.className = 'flex-1'; d1.style.background = hex; d1.title = hex; o.appendChild(d1);
+    var sim = state.vis === 'normal' ? hex : simulateColorBlind(hex, state.vis);
+    var d2 = document.createElement('div'); d2.className = 'flex-1'; d2.style.background = sim; d2.title = hex + ' → ' + sim; s.appendChild(d2);
+  });
+  $('visSimLabel').textContent = 'Simulated — ' + VIS_NAMES[state.vis];
+}
+
+/* ---- export studio ---- */
+function currentExportText(){
+  var name = ($('saveName').value || 'hive-palette').trim() || 'hive-palette';
+  var pal = state.palette;
+  if (state.exportTab === 'css') return exportCSS(pal, name);
+  if (state.exportTab === 'tailwind') return exportTailwind(pal, name);
+  if (state.exportTab === 'json') return exportJSON(pal, name);
+  return exportSVG(pal, name);
+}
+function renderExport(){
+  $('exportCode').textContent = currentExportText();
+  $('exportMsg').textContent = '';
+}
+
+/* ---- saved palettes (localStorage) ---- */
+var LS_KEY = 'huehive-saved-v1';
+function loadSaved(){
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch(e){ return []; }
+}
+function storeSaved(list){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(list)); } catch(e){}
+}
+function renderSaved(){
+  var list = loadSaved();
+  var wrap = $('savedList'); wrap.innerHTML = '';
+  $('savedEmpty').style.display = list.length ? 'none' : 'block';
+  list.forEach(function(item, idx){
+    var card = document.createElement('div');
+    card.className = 'bg-white border-2 border-slate-900 rounded-2xl p-3';
+    card.innerHTML =
+      '<div class="flex rounded-lg overflow-hidden border border-slate-300 h-10 mb-2">' +
+        item.colors.map(function(h){ return '<div class="flex-1" style="background:' + h + '"></div>'; }).join('') +
+      '</div>' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<span class="font-black text-sm truncate">' + item.name.replace(/</g,'&lt;') + '</span>' +
+        '<span class="flex gap-1 shrink-0">' +
+          '<button data-s="load" class="text-xs font-black bg-lime-300 border border-slate-900 rounded-full px-2.5 py-1">Load</button>' +
+          '<button data-s="del" class="text-xs font-black bg-red-200 border border-slate-900 rounded-full px-2.5 py-1">✕</button>' +
+        '</span>' +
+      '</div>';
+    card.querySelector('[data-s="load"]').addEventListener('click', function(){
+      state.palette = item.colors.slice(0, 8);
+      state.locks = state.palette.map(function(){ return false; });
+      renderPalette();
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    card.querySelector('[data-s="del"]').addEventListener('click', function(){
+      var l = loadSaved(); l.splice(idx,1); storeSaved(l); renderSaved();
+    });
+    wrap.appendChild(card);
+  });
+}
+
+/* ---- wiring ---- */
+document.addEventListener('DOMContentLoaded', function(){
+  renderPalette(); renderSaved(); syncContrast();
+
+  $('genBtn').addEventListener('click', generate);
+  $('harmonyRule').addEventListener('change', generate);
+  $('swatchCount').addEventListener('change', generate);
+  $('baseColor').addEventListener('input', generate);
+  document.addEventListener('keydown', function(e){
+    if (e.code === 'Space' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){
+      e.preventDefault(); generate();
+    }
+  });
+
+  /* image */
+  var dz = $('dropzone');
+  dz.addEventListener('click', function(){ $('fileInput').click(); });
+  $('fileInput').addEventListener('change', function(e){ handleFile(e.target.files[0]); });
+  ['dragover','dragenter'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.add('bg-cyan-100'); }); });
+  ['dragleave','drop'].forEach(function(ev){ dz.addEventListener(ev, function(e){ e.preventDefault(); dz.classList.remove('bg-cyan-100'); }); });
+  dz.addEventListener('drop', function(e){ handleFile(e.dataTransfer.files[0]); });
+  $('extractCount').addEventListener('input', function(){
+    $('extractCountVal').textContent = $('extractCount').value;
+    if (imgPixels.length) runExtraction();
+  });
+  $('imgCanvas').addEventListener('click', function(e){
+    if (!imgPixels.length) return;
+    var r = $('imgCanvas').getBoundingClientRect();
+    var x = Math.floor((e.clientX - r.left) * ($('imgCanvas').width / r.width));
+    var y = Math.floor((e.clientY - r.top) * ($('imgCanvas').height / r.height));
+    var ctx = $('imgCanvas').getContext('2d');
+    var d = ctx.getImageData(Math.max(0,Math.min($('imgCanvas').width-1,x)), Math.max(0,Math.min($('imgCanvas').height-1,y)), 1, 1).data;
+    var hex = rgbToHex(d[0], d[1], d[2]);
+    state.palette.push(hex); state.locks.push(false);
+    if (state.palette.length > 8){ state.palette.shift(); state.locks.shift(); }
+    renderPalette();
+  });
+
+  /* contrast */
+  $('fgPick').addEventListener('input', function(){ $('fgHex').value = $('fgPick').value.toUpperCase(); syncContrast(); });
+  $('bgPick').addEventListener('input', function(){ $('bgHex').value = $('bgPick').value.toUpperCase(); syncContrast(); });
+  $('fgHex').addEventListener('input', function(){ syncContrast(); });
+  $('bgHex').addEventListener('input', function(){ syncContrast(); });
+  $('swapBtn').addEventListener('click', function(){
+    var f = $('fgHex').value, b = $('bgHex').value;
+    $('fgHex').value = b; $('bgHex').value = f; syncContrast();
+  });
+  $('useAsPaletteBtn').addEventListener('click', function(){
+    if (hexToRgb($('fgHex').value) && hexToRgb($('bgHex').value)){
+      state.palette = [$('fgHex').value.toUpperCase(), $('bgHex').value.toUpperCase()];
+      state.locks = [false,false]; renderPalette();
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+  });
+
+  /* vision */
+  $('visBtns').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-vis]'); if (!btn) return;
+    state.vis = btn.getAttribute('data-vis');
+    document.querySelectorAll('#visBtns .visbtn').forEach(function(x){ x.classList.remove('on'); });
+    btn.classList.add('on');
+    renderVision();
+  });
+
+  /* export */
+  $('exportTabs').addEventListener('click', function(e){
+    var btn = e.target.closest('[data-exp]'); if (!btn) return;
+    state.exportTab = btn.getAttribute('data-exp');
+    document.querySelectorAll('#exportTabs .tabbtn').forEach(function(x){ x.classList.remove('on'); });
+    btn.classList.add('on');
+    renderExport();
+  });
+  $('copyExportBtn').addEventListener('click', function(){ copyText(currentExportText(), $('exportMsg')); });
+  $('dlExportBtn').addEventListener('click', function(){
+    var ext = { css:'css', tailwind:'js', json:'json', svg:'svg' }[state.exportTab];
+    var blob = new Blob([currentExportText()], {type:'text/plain'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'huehive-palette.' + ext;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    $('exportMsg').textContent = 'Downloaded ✓';
+    setTimeout(function(){ $('exportMsg').textContent=''; }, 1600);
+  });
+
+  /* save */
+  $('saveBtn').addEventListener('click', function(){
+    var name = $('saveName').value.trim() || ('Palette ' + (loadSaved().length + 1));
+    var l = loadSaved();
+    l.unshift({ name: name, colors: state.palette.slice(), ts: Date.now() });
+    storeSaved(l.slice(0, 24));
+    $('saveName').value = '';
+    renderSaved();
+  });
+});
+</script>
+
+<!-- ============ SEO ARTICLE ============ -->
+<article class="mx-auto max-w-4xl px-4 sm:px-6 py-10 prose-headings:font-black">
+  <h2 class="text-3xl font-black mb-6">The Complete Guide to Color Palette Generators: Theory, Extraction, Contrast & Inclusive Design</h2>
+
+  <p class="mb-4 text-slate-700 leading-relaxed">Color is the first thing people notice about a design and the last thing they forget. Before a visitor reads a single headline, the palette of a website, app, or brand has already told them whether it feels playful or serious, premium or cheap, calm or electric. That is why a <strong>color palette generator</strong> has become one of the most-used tools in a designer's daily kit: it turns the intimidating science of color into something you can explore in seconds, with harmonious combinations generated from a single click or a single base color.</p>
+
+  <p class="mb-4 text-slate-700 leading-relaxed">But not all palette tools are equal. The best ones do more than shuffle random swatches. They understand color theory, they let you steal colors from the real world with an <strong>image palette extractor</strong>, they verify that your choices are readable with a <strong>WCAG contrast checker</strong>, they preview how your scheme looks to people with <strong>color-vision deficiency</strong>, and they hand you <strong>developer-ready exports</strong> like CSS variables and Tailwind config snippets. HueHive was built to be exactly that kind of all-in-one color lab, and this guide explains the ideas behind every station.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">How color harmonies actually work</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">Every palette generator is really a small color-theory engine. Colors live on a wheel: hue is the angle around the wheel (0° is red, 120° is green, 240° is blue), saturation is how vivid the color is, and lightness is how close it is to white or black. Harmonies are simply geometric relationships on that wheel that human eyes tend to find pleasing.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed"><strong>Complementary</strong> pairs sit opposite each other (red with teal, for instance) and create maximum pop — perfect for a call-to-action button on a calm background. <strong>Analogous</strong> palettes use neighboring hues and feel serene and cohesive, which is why nature-inspired brands love them. <strong>Triadic</strong> schemes take three evenly spaced hues for a balanced but lively look, while <strong>tetradic</strong> (four hues) suits rich illustrations and data visualizations where you need many distinct series colors. <strong>Split-complementary</strong> gives you the energy of a complementary pair with less visual tension, <strong>monochromatic</strong> schemes vary only lightness for the safest minimal interfaces, and <strong>pastel</strong> or <strong>vivid</strong> treatments tune the mood toward soft friendliness or electric playfulness.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">A practical tip professionals use: decide on roles before colors. Most interfaces need one dominant background, one primary brand color, one accent for actions, one success color, one warning color, and one error color. Generate a harmony, then assign roles — resist the urge to use all five colors at equal weight, or the design will feel noisy.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">Stealing colors from photos: image palette extraction</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">Some of the most beautiful palettes in the world already exist — in a sunset photograph, a movie still, a product shot, or your own brand photography. An image-to-palette extractor automates what designers used to do with an eyedropper: it samples thousands of pixels from a photo, groups similar colors together through a process called quantization, and surfaces the dominant hues ranked by how much of the image they occupy.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">HueHive's extractor does all of this locally in your browser with an HTML canvas. It downsizes the image for speed, skips transparent pixels, buckets similar tones, and filters near-duplicates so you don't get five nearly identical beiges. Because nothing is uploaded to a server, you can safely extract palettes from client work, unreleased branding, or personal photos with complete privacy. A good workflow: extract six colors from a hero image, then feed the strongest one into the harmony generator as a base color — you get a palette that feels native to your imagery.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">One caution: dominant does not always mean useful. Photos often contain large areas of sky, shadow, or skin tone that dominate the statistics but make poor UI colors. That is why HueHive also lets you click any pixel in the preview — for a brand color, the exact pixel beats the statistical average every time.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">WCAG contrast: the math behind readable text</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">A palette can be gorgeous and still fail its users if text is unreadable. The Web Content Accessibility Guidelines (WCAG) define this precisely with the <strong>contrast ratio</strong>: a number from 1:1 (identical colors) to 21:1 (black on white). It is computed from each color's relative luminance — roughly, how bright the human eye perceives it — with the formula (L1 + 0.05) / (L2 + 0.05).</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">The thresholds are worth memorizing. <strong>AA</strong>, the legal and practical standard in most countries, requires 4.5:1 for normal text and 3:1 for large text (roughly 18pt and up, or 14pt bold) and UI components. <strong>AAA</strong>, the strictest level, requires 7:1 for normal text and 4.5:1 for large text. HueHive's contrast checker computes the exact ratio live and shows pass/fail badges for all four criteria, plus a live preview of your heading, body text, and a button rendered in the actual pair.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">Common traps: medium gray text on light gray backgrounds (a classic startup look that fails AA), colored text on colored backgrounds without checking, and placeholder text that is too faint. When a pair fails, the fastest fix is usually to darken the text color or lighten the background rather than abandoning the hue you love — lightness moves the ratio far more than hue does.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">Designing for color-blind users</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">About 1 in 12 men and 1 in 200 women have some form of color-vision deficiency. The most common are <strong>protanopia</strong> (red-blind) and <strong>deuteranopia</strong> (green-blind), where reds and greens collapse into similar olive tones; <strong>tritanopia</strong> (blue-blind) is rarer and confuses blues with greens; <strong>achromatopsia</strong> is total color blindness. If your design communicates meaning through color alone — red versus green status dots, chart series, form validation — a significant slice of your audience may literally not see the difference.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">HueHive's vision simulator applies standard LMS-space transformation matrices to your entire palette so you can compare the original and simulated versions side by side. The design rules that survive simulation: never rely on hue alone — pair color with icons, labels, or patterns; ensure status colors differ in lightness, not just hue; and favor blue/orange distinctions over red/green ones, since blue-yellow confusion is far less common. Testing takes ten seconds and can save you from shipping an unreadable dashboard.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">From palette to production: exports developers love</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">A palette locked in a screenshot is a liability — someone will mistype a hex code eventually. The professional move is to export design tokens: <strong>CSS custom properties</strong> (<code>:root { --brand-1: #FF4D6D; }</code>) that your stylesheets reference, a <strong>Tailwind CSS config</strong> block that turns your palette into utility classes, or a <strong>JSON token file</strong> that design tools and mobile apps can consume. HueHive generates all three, plus an SVG swatch strip for documentation, with one-click copy and file download.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">Naming matters too. Generic names like <code>--color-1</code> rot quickly; semantic names like <code>--brand-primary</code> or <code>--status-error</code> survive redesigns. Export early, name semantically, and keep the palette file as the single source of truth your whole team imports.</p>
+
+  <h3 class="text-2xl font-black mt-8 mb-3">A practical workflow, start to finish</h3>
+  <p class="mb-4 text-slate-700 leading-relaxed">Here is a workflow that combines everything on this page in about five minutes. First, upload a photo that captures the mood you want — a product shot, a landscape, a texture — and extract six dominant colors. Second, pick the strongest as your base color in the harmony generator and try two or three harmony rules; lock any swatch you love and regenerate around it (the spacebar shuffle makes this addictive). Third, open any swatch's detail view to explore its tints and shades for hover states and backgrounds. Fourth, run your text/background pairs through the contrast checker until body text hits 4.5:1. Fifth, flip through the vision simulator and fix any pair that collapses into sameness. Finally, export CSS variables or the Tailwind config and paste them into your project. Save the palette to your hive so you can reload it tomorrow.</p>
+  <p class="mb-4 text-slate-700 leading-relaxed">Color is a skill, but it is also a tool problem — and the right tools make good taste repeatable. Generate boldly, verify ruthlessly, and export cleanly. Your users, including the one in twelve who sees the world a little differently, will thank you.</p>
+
+  <h3 class="text-2xl font-black mt-10 mb-4">Frequently asked questions</h3>
+  <div class="space-y-4">
+    <div class="bg-amber-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">Is HueHive's color palette generator really free?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">Yes. Every feature on HueHive — palette generation, image palette extraction, the WCAG contrast checker, the color-blindness simulator, and all exports — is free with unlimited usage. There is no signup, no paywall, and no watermark on anything you create or download.</p>
+    </div>
+    <div class="bg-cyan-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">How does the image-to-palette extractor work?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">When you upload a photo, HueHive draws it to an in-memory canvas, samples its pixels, groups similar colors together with a quantization pass, and returns the most dominant colors. Your image never leaves your browser — everything happens locally on your device, so it is private and instant.</p>
+    </div>
+    <div class="bg-violet-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">What is a good WCAG contrast ratio?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">WCAG 2.1 asks for at least 4.5:1 for normal text (AA), 3:1 for large text or UI components (AA), and 7:1 for the strict AAA level on normal text. HueHive's contrast checker shows the exact ratio plus pass/fail badges for each level, and previews your text on the background live.</p>
+    </div>
+    <div class="bg-lime-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">Which color harmony should I choose?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">Complementary (opposite hues) gives bold contrast for calls-to-action; analogous (neighbors on the wheel) feels calm and cohesive; triadic and tetradic give playful multi-color schemes for illustrations; monochromatic (one hue, varied lightness) is the safest choice for minimal interfaces.</p>
+    </div>
+    <div class="bg-rose-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">How do I make my palette color-blind friendly?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">Avoid relying on red-versus-green alone to carry meaning, and check pairs with strong lightness differences. HueHive's vision simulator shows your palette as seen with protanopia, deuteranopia, and tritanopia so you can verify that every color still reads distinctly before you ship.</p>
+    </div>
+    <div class="bg-amber-50 border-2 border-slate-900 rounded-2xl p-5">
+      <h4 class="font-black mb-2">How do I export a palette to Tailwind CSS?</h4>
+      <p class="text-slate-700 text-sm leading-relaxed">Click any palette you like, then open the Export Studio and choose the Tailwind tab. HueHive generates a ready-to-paste tailwind.config.js colors object. You can also copy CSS custom properties, JSON tokens, or download the snippet as a file — all with one click.</p>
+    </div>
+  </div>
+</article>
+
+<footer class="border-t-2 border-slate-900 mt-6">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+      <svg width="26" height="26" viewBox="0 0 40 40" aria-hidden="true">
+        <polygon points="20,2 35,11 35,29 20,38 5,29 5,11" fill="#FF4D6D"/>
+        <polygon points="20,8 30,14 30,26 20,32 10,26 10,14" fill="#FFD23F"/>
+        <polygon points="20,14 25,17 25,23 20,26 15,23 15,17" fill="#4D96FF"/>
+      </svg>
+      <span class="font-black">HueHive</span>
+      <span class="text-slate-500 text-sm">— free color tools, unlimited usage.</span>
+    </div>
+    <nav class="flex gap-5 text-sm font-bold">
+      <a href="#top" class="hover:text-pink-600">Home</a>
+      <a href="https://fixoraa.tech" class="hover:text-pink-600">More Tools</a>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
